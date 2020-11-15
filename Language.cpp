@@ -36,10 +36,10 @@ Language& Language::operator+=(const Language& other) {
   if (&other == this) {
     return *this;
   }
-  has_prefix_ += other.has_prefix_;
-  has_suffix_ += other.has_suffix_;
-  has_whole_ += other.has_whole_;
-  has_substr_ += other.has_substr_;
+  has_prefix_ |= other.has_prefix_;
+  has_suffix_ |= other.has_suffix_;
+  has_whole_ |= other.has_whole_;
+  has_substr_ |= other.has_substr_;
   return *this;
 }
 
@@ -47,21 +47,20 @@ Language& Language::operator*=(const Language& other) {
   if (&other == this) {
     return *this = *this * other;
   }
-  has_prefix_ += has_whole_ * other.has_prefix_;
-  has_suffix_ = has_suffix_ * other.has_whole_ + other.has_suffix_;
+  has_prefix_ |= has_whole_ * other.has_prefix_;
+  has_suffix_ = has_suffix_ * other.has_whole_ | other.has_suffix_;
   has_whole_ *= other.has_whole_;
-  has_substr_ += has_suffix_ * other.has_prefix_ + other.has_substr_;
+  has_substr_ |= has_suffix_ * other.has_prefix_ | other.has_substr_;
   return *this;
 }
 
 Language Language::Kleene() const {
   Language result;
-  result.has_whole_ = has_whole_;
-  TransitiveClosure(result.has_whole_);
+  result.has_whole_ = has_whole_.TransitiveClosure();
   result.has_prefix_ = result.has_whole_ * has_prefix_;
   result.has_suffix_ = has_suffix_ * result.has_whole_;
   result.has_substr_ =
-      has_suffix_ * result.has_whole_ * has_prefix_ + has_substr_;
+      has_suffix_ * result.has_whole_ * has_prefix_ | has_substr_;
   return result;
 }
 

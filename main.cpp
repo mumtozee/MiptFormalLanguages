@@ -1,63 +1,79 @@
 #include <iostream>
+#include <optional>
 #include <stack>
 #include <string>
 
 #include "Language.h"
 
-bool CheckRegexpValidity(const std::string& regexp) {
-  size_t stack_size = 0;
-  for (char symbol : regexp) {
-    if (symbol == 'a' || symbol == 'b' || symbol == 'c' || symbol == '1') {
-      ++stack_size;
-    } else if (symbol == '+' || symbol == '.') {
-      if (stack_size < 2) {
-        return false;
-      }
-      --stack_size;
-    } else if (symbol == '*') {
-      if (stack_size < 1) {
-        return false;
-      }
-    } else {
-      return false;
-    }
+enum class RegItem { SYMBOL, PLUS, DOT, KLEENE, ONE, GARBAGE };
+
+RegItem GetTokenType(char c) {
+  switch (c) {
+    case 'a':  // fall-through
+    case 'b':
+    case 'c':
+      return RegItem::SYMBOL;
+    case '+':
+      return RegItem::PLUS;
+    case '.':
+      return RegItem::DOT;
+    case '*':
+      return RegItem::KLEENE;
+    case '1':
+      return RegItem::ONE;
+    default:
+      return RegItem::GARBAGE;
   }
-  return stack_size == 1;
 }
 
-Language ParseRegexp(const std::string& regexp, const std::string& word) {
-  /* check regexp validity before using this function */
+template <typename T>
+bool VerifyStackSize(const std::stack<T>& stack, RegItem item) {
+  switch (item) {
+    case RegItem::PLUS:  // fall-through
+    case RegItem::DOT:
+      return stack.size() >= 2;
+    case RegItem::KLEENE:
+      return !stack.empty();
+    default:
+      return true;
+  }
+}
+
+std::optional<Language> ParseRegexp(const std::string& regexp,
+                                    const std::string& word) {
   std::stack<Language> reg_stack;
   Language operand, lhs, rhs;
   for (char c : regexp) {
-    switch (c) {
-      case 'a':
+    auto reg_type = GetTokenType(c);
+    switch (reg_type) {
+      case RegItem::ONE:  // fall-through
+      case RegItem::SYMBOL:
         reg_stack.emplace(c, word);
         break;
-      case 'b':
-        reg_stack.emplace(c, word);
-        break;
-      case 'c':
-        reg_stack.emplace(c, word);
-        break;
-      case '1':
-        reg_stack.emplace(c, word);
-        break;
-      case '+':
+      case RegItem::PLUS:
+        if (!VerifyStackSize(reg_stack, reg_type)) {
+          return {};
+        }
         rhs = reg_stack.top();
         reg_stack.pop();
         lhs = reg_stack.top();
         reg_stack.pop();
         reg_stack.push(lhs + rhs);
         break;
-      case '.':
+      case RegItem::DOT:
+        if (!VerifyStackSize(reg_stack, reg_type)) {
+          return {};
+        }
         rhs = reg_stack.top();
         reg_stack.pop();
         lhs = reg_stack.top();
         reg_stack.pop();
         reg_stack.push(lhs * rhs);
         break;
-      case '*':
+      case RegItem::KLEENE:
+        if (!VerifyStackSize(reg_stack, reg_type)) {
+          return {};
+        }
         operand = reg_stack.top();
         reg_stack.pop();
         reg_stack.push(operand.Kleene());
@@ -69,12 +85,16 @@ Language ParseRegexp(const std::string& regexp, const std::string& word) {
   return reg_stack.top();
 }
 
-size_t CountMaxSubWordLen(const std::string& regexp, const std::string& word) {
-  Language lang = ParseRegexp(regexp, word);
+std::optional<size_t> CountMaxSubWordLen(const std::string& regexp,
+                                         const std::string& word) {
+  auto lang = ParseRegexp(regexp, word);
+  if (!lang) {
+    return {};
+  }
   size_t ans = 0;
-  for (size_t i = 0; i < lang.has_prefix_.Size(); ++i) {
-    for (size_t j = i; j < lang.has_prefix_.Size(); ++j) {
-      if (lang.has_substr_(i, j)) {
+  for (size_t i = 0; i < lang->has_prefix_.Size(); ++i) {
+    for (size_t j = i; j < lang->has_prefix_.Size(); ++j) {
+      if (lang->has_substr_(i, j)) {
         if (j - i > ans) {
           ans = j - i;
         }
@@ -92,8 +112,9 @@ int main() {
   std::string input_word;
   input_word.reserve(kInitialCapacity);
   std::cin >> regexp >> input_word;
-  if (CheckRegexpValidity(regexp)) {
-    std::cout << CountMaxSubWordLen(regexp, input_word) << std::endl;
+  auto result = CountMaxSubWordLen(regexp, input_word);
+  if (result) {
+    std::cout << *result << std::endl;
   } else {
     std::cout << "INF\n";
   }

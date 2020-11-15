@@ -17,21 +17,24 @@ class MatrixBool {
   std::vector<bool>::const_reference operator()(size_t i, size_t j) const;
   std::vector<bool>::reference operator()(size_t i, size_t j);
 
-  MatrixBool& operator+=(const MatrixBool& other);
+  std::vector<bool>::const_reference Get(size_t i, size_t j) const;
+  std::vector<bool>::reference Get(size_t i, size_t j);
+
+  MatrixBool& operator|=(const MatrixBool& other);
   MatrixBool& operator*=(const MatrixBool& other);
 
   size_t Size() const;
+  MatrixBool TransitiveClosure() const;
+  void PrintMatrix() const;
 
  private:
   std::vector<bool> buffer_;
   size_t size_;
+  void BFS(size_t root);
 };
 
-MatrixBool operator+(MatrixBool lhs, const MatrixBool& rhs);
+MatrixBool operator|(MatrixBool lhs, const MatrixBool& rhs);
 MatrixBool operator*(MatrixBool lhs, const MatrixBool& rhs);
 
-void BFS(MatrixBool& graph, size_t root);
-void TransitiveClosure(MatrixBool& graph);
-void PrintMatrix(const MatrixBool& mtx);
 
 #endif  // MATRIXBOOL_H
